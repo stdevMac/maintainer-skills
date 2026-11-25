@@ -1,12 +1,15 @@
 ---
 name: review-pr
-description: Adversarial review of a pull request at an exact head, in an isolated worktree. Reads the full public context, computes the true merge-base diff, reviews every changed file against the project rules and a correctness, security, compatibility, performance and test checklist, falsifies each finding before keeping it, optionally verifies by execution (build, run the PR's tests, prove they fail on the base, run the live scenario), and publishes an APPROVE or a concise COMMENT pinned to the reviewed commit when policy allows. Use when the user says "review PR N", "check this PR", "is this PR correct", "review my changes", or as the review stage of the maintainer loop.
+description: Adversarial review of a pull request at an exact head, in an isolated worktree. Reads the full public context, computes the true merge-base diff, reviews every changed file against the project rules and a correctness, security, compatibility, performance and test checklist, falsifies each finding before keeping it, optionally verifies by execution (build, run the PR's tests, prove they fail on the base, run the live scenario), and drafts an APPROVE or a concise COMMENT pinned to the reviewed commit, posting it only when the configured action mode allows. Use when the user says "review PR N", "check this PR", "is this PR correct", "review my changes", or as the review stage of the maintainer loop.
 ---
 
 # Review a pull request
 
-Arguments: a PR number or URL, optional `--repo`, `--verify` (run code, see step 6), `--publish`,
-`--focus "<area>"`.
+Arguments: a PR number or URL, optional `--repo`, `--verify` (run code, see step 6), `--focus "<area>"`.
+
+Posting the review is the `pr_review` action and is opt-in: resolve its mode with the project-profile
+skill's `scripts/action-mode.sh pr_review` (`off`, `draft` by default, `ask`, `auto`). A `pr-reviewer`
+subagent never posts whatever the mode; it returns the draft payload.
 
 Load the project profile and the project's own rules (read from disk; they change). If the project ships
 its own review skill or rules (for example `.agents/skills/review`), apply them in addition to this one.
@@ -47,9 +50,11 @@ its own review skill or rules (for example `.agents/skills/review`), apply them 
 8. **Decide** using the disposition table in [references/publish.md](references/publish.md): approve,
    comment, hold (an existing unresolved issue or unmet owner condition already covers it), or
    incomplete (you could not cover something material; say what).
-9. **Publish** only when policy allows or `--publish` was given, following
-   [references/publish.md](references/publish.md): refresh the head first, pin `commit_id`, deduplicate,
-   save the payload and the receipt. Otherwise save the draft and report its path.
+9. **Publish per the action mode for `pr_review`**, following
+   [references/publish.md](references/publish.md). Every mode saves the payload to
+   `<state>/drafts/pr_review/<n>-<head sha>.md` (`<state>` as in the maintainer-loop skill). `off` and
+   `draft`: stop there and report the path. `ask`: show it, post after approval. `auto` (or approved
+   `ask`): refresh the head first, pin `commit_id`, deduplicate, post, save the receipt.
 10. **Clean up.** Remove the review worktree and your private refs. Keep notes and evidence.
 
 ## Output

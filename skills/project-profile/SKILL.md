@@ -29,6 +29,10 @@ build one.
    remotes). Record the authenticated `gh` account and its permission on the repo.
 2. **Facts.** Run `scripts/detect-project.sh <clone> --gh`. It is read-only. Keep its output next to the
    profile as `<owner>__<repo>.facts.md` for the next refresh.
+   Before reusing stored facts, run `scripts/detect-project.sh --check <facts-file> <clone>`.
+   Read a nonempty diff and refresh the affected profile sections; never silently grant permissions.
+   Resolve write modes with `scripts/action-mode.sh --list --repo <owner/repo>`; only a personal
+   profile or a profile explicitly selected by the user contributes `## Actions` modes.
 3. **Project rules.** Read every instruction file the facts list (`AGENTS.md`, `CLAUDE.md`,
    `CONTRIBUTING`, rule directories, PR template, `CODEOWNERS`, `SECURITY.md`). The profile links to them
    and summarizes only what changes agent behavior: required test style, forbidden edits, commit format,

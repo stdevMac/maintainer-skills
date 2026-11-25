@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Fake gh for tests: logs every call to $FAKE_GH_LOG and answers from $FAKE_GH_ROUTES. See tests/lib.sh.
+# Route line: MODE<TAB>ERE<TAB>FIXTURE<TAB>RC, MODE always|once|used. First matching route wins.
+set -euo pipefail
+
+: "${FAKE_GH_ROUTES:?fake gh: FAKE_GH_ROUTES not set}" "${FAKE_GH_LOG:?fake gh: FAKE_GH_LOG not set}"
+call="$(for a in "$@"; do printf '%s\0' "$a"; done | jq -Rsc 'split("\u0000") | .[:-1]')"
+joined="$*"
+
+expr=""; prev=""
+for a in "$@"; do
+  case "$prev" in --jq|-q) expr="$a" ;; esac
+  case "$a" in --jq=*) expr="${a#--jq=}" ;; esac
+  prev="$a"
+done
+
+n=0; hit=""
+while IFS=$'\t' read -r mode re fixture rc; do
+  n=$((n + 1))
+  [ "$mode" = used ] && continue
+  if [[ "$joined" =~ $re ]]; then hit="$n"; break; fi
+done < "$FAKE_GH_ROUTES"
+
+if [ -z "$hit" ]; then
+  jq -c '. + ["unrouted"]' <<<"$call" >> "$FAKE_GH_LOG"
+  echo "fake gh: no route for: gh $joined" >&2
+  exit 97
+fi
+printf '%s\n' "$call" >> "$FAKE_GH_LOG"
+if [ "$mode" = once ]; then
+  t="$(mktemp "$FAKE_GH_ROUTES.XXXXXX")"
+  awk -F'\t' -v OFS='\t' -v n="$hit" 'NR==n {$1="used"} {print}' "$FAKE_GH_ROUTES" > "$t" && mv "$t" "$FAKE_GH_ROUTES"
+fi
+if [ "$rc" != 0 ]; then cat "$fixture" >&2; exit "$rc"; fi
+if [ -n "$expr" ]; then jq -r "$expr" < "$fixture"; else cat "$fixture"; fi

@@ -8,11 +8,11 @@ description: Drive a pull request from open to merged without cutting corners. S
 Arguments: one or more PR numbers, or `--author <login>` for all open PRs of an author; optional
 `--post` (publish replies), `--merge` (allow merging), `--watch`.
 
-Every pass ends with each PR either merged or carrying a named blocker that only a human can clear (an
-approval, a code-owner review, a design decision). A PR never merges with an open review thread.
-
-Load the project profile. Its Policy says whether you may push, post replies, resolve threads, rerun CI
-and merge; the arguments can only narrow it. Its CI section names extra merge blockers and known flakes.
+End with a merge receipt, a local draft, or the exact blocker. A PR never merges with an open thread.
+Load the project profile and resolve modes with the project-profile skill's `action-mode.sh`.
+Use `push_branch`, `thread_reply`, `ci_rerun`, `pr_ready`, `pr_open` (body edits), `pr_merge` and
+`issue_close` for their respective actions. `--post` and `--merge` only narrow permissions; neither
+overrides a mode or a project gate. Start a detached watcher only in `pr_merge=auto` mode.
 
 ## Steps
 

@@ -13,7 +13,9 @@ You review exactly one pull request at the head SHA in your brief, following the
   regardless.
 - If your brief allows execution, prove findings with tests in your own worktree, check that the PR's
   test fails on the base, and run the PR's live scenario. Otherwise claim nothing ran.
-- Never post, approve, comment, label or push. Remove your worktree when done.
+- Never post, approve, comment, label or push, whatever the action mode for `pr_review`: the
+  orchestrator or main session posts your draft. Save it as `<state>/drafts/pr_review/<n>-<head sha>.md`
+  per the review-pr skill. Remove your worktree when done.
 
 Return: head and base SHAs, scope (reviewed and skipped with reasons), surviving findings (file:line,
 trigger, impact, fix), dropped hypotheses in one line each, executed commands with counts, disposition

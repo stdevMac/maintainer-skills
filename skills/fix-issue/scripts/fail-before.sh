@@ -46,8 +46,17 @@ fi
 [ ${#files[@]} -gt 0 ] || { echo "no production files changed since ${base_sha:0:12}; pass --prod" >&2; exit 2; }
 
 log="${log:-$(mktemp "${TMPDIR:-/tmp}/fail-before.XXXXXX.log")}"
+# put_back REV: make every production file what it is at REV; a file REV does not have is removed, so a
+# file the fix added or deleted round-trips too.
+put_back() {
+  local f
+  for f in "${files[@]}"; do
+    if git cat-file -e "$1:$f" 2>/dev/null; then git restore --source="$1" --worktree -- "$f"
+    else rm -f -- "$f"; fi
+  done
+}
 restore() {
-  git restore --source=HEAD --worktree -- "${files[@]}" 2>/dev/null || true
+  put_back HEAD || true
   if [ -n "$(git status --porcelain)" ]; then
     echo "WARNING: worktree not clean after restore; inspect with git status" >&2
   fi
@@ -56,7 +65,7 @@ trap restore EXIT
 
 echo "base ${base_sha:0:12}; reverting ${#files[@]} production file(s):" >&2
 printf '  %s\n' "${files[@]}" >&2
-git restore --source="$base_sha" --worktree -- "${files[@]}"
+put_back "$base_sha"
 
 set +e
 "$@" > "$log" 2>&1

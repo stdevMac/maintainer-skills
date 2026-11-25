@@ -1,15 +1,22 @@
 ---
 name: fix-issue
-description: Fix an issue from a Task Brief, proving it at the highest reachable level of the test ladder. Prepares an isolated worktree and environment, writes the regression test first and shows it failing for the right reason, makes the smallest root-cause fix, proves the test fails without the fix, runs static checks, full affected suites, integration and live runs (real binary or service, devnet, differential baseline-vs-fix), self-reviews adversarially, then commits, pushes and opens a PR with evidence-backed testing notes. Use when the user says "fix #N", "implement the fix", "make a PR for this", or when triage-issue produced a needs_fix brief.
+description: Fix an issue from a Task Brief, proving it at the highest reachable level of the test ladder. Prepares an isolated worktree and environment, writes the regression test first and shows it failing for the right reason, makes the smallest root-cause fix, proves the test fails without the fix, runs static checks, full affected suites, integration and live runs (real binary or service, devnet, differential baseline-vs-fix), self-reviews adversarially, then commits and drafts the push and a PR with evidence-backed testing notes (pushing and opening the PR only when the configured action modes allow). Use when the user says "fix #N", "implement the fix", "make a PR for this", or when triage-issue produced a needs_fix brief.
 ---
 
 # Fix an issue
 
-Arguments: an issue number, URL or Task Brief path; optional `--no-pr`, `--draft` (default), `--ready`.
+Arguments: an issue number, URL or Task Brief path; optional `--draft` (default), `--ready`.
 
 Inputs, in order: the Task Brief (`<state>/briefs/<n>.md`; no brief: run the triage-issue skill first),
 the project profile, the project's own rules (the brief and profile list them; read them from disk now,
 they change). Paths: `<state>` is defined in the maintainer-loop skill.
+
+Public actions are opt-in. Before each one (`push_branch`, `pr_open`, `pr_ready`, `ci_dispatch`),
+resolve its mode with the project-profile skill's `scripts/action-mode.sh <action>`: `off` (skip, report
+what you would have done), `draft` (the default: save the exact payload to
+`<state>/drafts/<action>/<n>-<slug>.md`, post nothing), `ask` (show the draft, act after approval),
+`auto` (act when the gates pass). A `fixer` subagent never acts publicly whatever the mode; it returns
+drafts and the orchestrator acts.
 
 ## You have room to work
 
@@ -43,7 +50,8 @@ nothing public and nothing irreversible without the policy allowing it.
      base versions of the production files, runs the test, expects failure, and puts the fix back.
    - L0: build, analyzers, formatter on the touched files: clean.
    - L2: every affected test project or package in full, not just the filter.
-   - L3: integration or e2e suites for the subsystem, locally or through the CI dispatch the profile names.
+   - L3: integration or e2e suites for the subsystem, locally or through the CI dispatch the profile names
+     (per the action mode for `ci_dispatch`; it needs the branch pushed).
    - L4/L5: the live scenario from the brief, on the baseline build and on the fixed build. The bug
      appears on baseline and is gone on the fix. Observe logs and metrics, not just exit codes.
    Record the levels you could not reach and why. A run counts only with a non-zero executed count.
@@ -51,15 +59,20 @@ nothing public and nothing irreversible without the policy allowing it.
    subagents with the lenses in the triage-issue skill's `references/verdicts.md`. Did the fix remove an
    existing guard's purpose? Can a retry, restart, concurrent caller or partial failure still reach the
    bad state? Does every caller still get what it expects? A refuter that wins sends you back to step 3.
-6. **Commit and push.** Identity, signing and message format from the profile. Never `--no-verify`,
-   never rewrite a pushed branch, never push to a remote the profile forbids. Verify the pushed head
-   equals your local head and, if the profile requires signed commits, that GitHub reports them verified.
-7. **Open the PR** when policy allows ([references/pr-body.md](references/pr-body.md)): project template,
-   closing keyword, real commands and counts from the evidence logs, the live-run IDs, levels not reached,
-   attribution line. Draft unless the user passed `--ready`. Then hand the PR to the merge-pr skill for
-   CI, review threads and merge, or stop if policy forbids.
+6. **Commit, then push per the action mode for `push_branch`.** Identity, signing and message format
+   from the profile. Never `--no-verify`, never rewrite a pushed branch, never push to a remote the
+   profile forbids. After a push, verify the pushed head equals your local head and, if the profile
+   requires signed commits, that GitHub reports them verified. Not pushed: the draft names the branch,
+   head SHA and remote.
+7. **Open the PR per the action mode for `pr_open`** ([references/pr-body.md](references/pr-body.md)):
+   project template, closing keyword, real commands and counts from the evidence logs, the live-run IDs,
+   levels not reached, attribution line. Save the body to `<state>/drafts/pr_open/<n>-<slug>.md` in every
+   mode. Draft PR unless the user passed `--ready` and the mode for `pr_ready` allows it. Then hand the
+   PR to the merge-pr skill for CI, review threads and merge.
 8. **Clean up.** Tear down every environment you started and check nothing labelled with your run ID is
-   left. Remove the worktree with `scripts/worktree.sh remove` once the branch is pushed; keep evidence.
+   left. Remove the worktree with `scripts/worktree.sh remove` once the branch is pushed; a branch that
+   stays local (mode `off` or `draft`) is removed with `--discard-unpushed`, which first saves a bundle.
+   Keep evidence.
 
 ## Budget and escalation
 

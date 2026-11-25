@@ -13,7 +13,9 @@ set -euo pipefail
 
 usage() { sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; }
 state="${MAINTAINER_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/maintainer-skills}"
-root="${MAINTAINER_WORKTREES:-$state/worktrees}"
+# Canonical, so that `remove` (which resolves its argument) matches the paths `new` registered even when
+# the root is given through a symlink or a relative path.
+root="$(realpath -m "${MAINTAINER_WORKTREES:-$state/worktrees}")"
 reg="$root/registry.tsv"; lock="$root/.registry.lock"
 now() { date -u +%Y%m%dT%H%M%SZ; }
 die() { echo "worktree.sh: $1" >&2; exit "${2:-1}"; }

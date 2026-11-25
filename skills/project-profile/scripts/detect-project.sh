@@ -1,20 +1,54 @@
 #!/usr/bin/env bash
 # Print the facts a maintainer profile needs, from a local checkout (and GitHub with --gh).
 # Usage: detect-project.sh [DIR=.] [--gh]
-#   --gh   also query GitHub (read-only): default branch, merge methods, branch rules, required checks
+#        detect-project.sh --check FACTS_FILE [DIR] [--gh]
+#   --gh     also query GitHub (read-only): default branch, merge methods, branch rules, required checks
+#   --check  regenerate the facts and compare them with FACTS_FILE, ignoring volatile lines (generation
+#            time, HEAD, file and extension counts, open PR/issue counts, recent failed runs). DIR
+#            defaults to the checkout named in FACTS_FILE; --gh is implied when FACTS_FILE has a GitHub
+#            section. Exit 0 when the facts match, 1 with a unified diff when they drifted, 2 on usage.
 # Output is Markdown. Nothing is written or executed from the repository.
 set -euo pipefail
 
-usage() { sed -n '2,5p' "$0" | sed 's/^# \{0,1\}//'; }
-dir="."; gh_mode=0
-for a in "$@"; do
-  case "$a" in
+usage() { sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; }
+dir=""; gh_mode=0; check=""
+while [ $# -gt 0 ]; do
+  case "$1" in
     --gh) gh_mode=1 ;;
+    --check) check="${2:?--check needs FACTS_FILE}"; shift ;;
     -h|--help) usage; exit 0 ;;
-    *) dir="$a" ;;
+    -*) echo "unknown argument $1" >&2; usage >&2; exit 2 ;;
+    *) dir="$1" ;;
   esac
+  shift
 done
-cd "$dir"
+
+# Lines that change with every commit or every day; a drift there is not a reason to refresh a profile.
+normalize() {
+  awk '/^Generated / || /^- HEAD: / || /^- tracked files: / || /^- open PRs: / {next}
+       /^Top extensions:$/ || /^Recent failed runs/ {skip=1; next}
+       skip && /^- / {next}
+       {skip=0; if (NF) print}'
+}
+
+if [ -n "$check" ]; then
+  [ -f "$check" ] || { echo "no such facts file: $check" >&2; exit 2; }
+  if [ -z "$dir" ]; then
+    dir="$(sed -n 's/^Generated .* from `\(.*\)`\.$/\1/p' "$check" | head -1)"
+    [ -n "$dir" ] && [ -d "$dir" ] || dir="."
+  fi
+  args=("$dir")
+  if [ $gh_mode = 1 ] || grep -qx '## GitHub (read-only)' "$check"; then args+=(--gh); fi
+  fresh="$(bash "${BASH_SOURCE[0]}" "${args[@]}")"
+  if diff -u --label "stored: $check" --label "fresh: $dir" <(normalize < "$check") <(normalize <<<"$fresh"); then
+    echo "facts current: $check"
+    exit 0
+  fi
+  echo "facts drifted: refresh the profile (project-profile skill, refresh mode) and store the new facts" >&2
+  exit 1
+fi
+
+cd "${dir:-.}"
 top="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$top"
 

@@ -103,6 +103,9 @@ checks: `<e.g. a guard workflow, a label>`. Reviews skip what CI enforces: `<lis
 | Ports / singletons | `<fixed ports, global caches>` | |
 | Cleanup | `<how to remove worktrees, containers, VMs>` | |
 
+Dispatch budget per round: `<maximum CI runs, estimated CI minutes, VM runs>`. No dispatch without a
+configured budget; paid or VM runs also require explicit approval unless a stricter policy forbids them.
+
 ## 10. Policy
 
 | Action | Allowed without asking | Notes |
@@ -133,3 +136,24 @@ Commit format: `<conventional commits?>`. PR title: `<format>`. Body: `<template
 Dated, one line each, with the incident that taught it:
 
 - `<YYYY-MM-DD>`: `<what happened> -> <what to do>`
+
+## Actions
+
+Public writes are optional. `off` skips the action; `draft` saves the payload locally (default);
+`ask` requires explicit approval of that payload; `auto` runs only when every applicable project and
+skill gate passes. `MAINTAINER_ACTIONS` overrides this table for one session. Notes only narrow a mode.
+
+| Action | Mode | Notes |
+|---|---|---|
+| push_branch | draft | |
+| pr_open | draft | Includes PR body edits |
+| pr_ready | draft | |
+| issue_comment | draft | |
+| issue_close | draft | |
+| issue_create | draft | |
+| labels | draft | Includes titles, assignees and reviewers |
+| pr_review | draft | |
+| thread_reply | draft | Includes resolving review threads |
+| pr_merge | draft | Never bypass the merge gate |
+| ci_dispatch | draft | Budget and resource approvals still apply |
+| ci_rerun | draft | |

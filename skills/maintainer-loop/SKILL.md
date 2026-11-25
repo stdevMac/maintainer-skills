@@ -19,7 +19,7 @@ you and is pasted into every subagent brief.
   the ledger, and makes **every** public write (issues, comments, closes, PRs, reviews, merges).
 - **Subagents** (role prompts in this repo's `agents/`; templates in
   [references/briefs.md](references/briefs.md)): triager, fixer, refuter, pr-reviewer. They may build,
-  test, run environments and push branches (fixers, when policy allows). They never post on GitHub.
+  test and run approved owned environments, but never push, dispatch remotely or post on GitHub.
   They start blank: give them the full rules text and the brief, not file names to look up.
 
 ## State
@@ -34,6 +34,8 @@ events: [references/ledger.md](references/ledger.md). Chat memory is not state.
 1. `gh auth status`; confirm the account and git identity match the profile. Fetch the clone.
 2. Load the profile (project-profile skill lookup). Missing, or a command in it fails: run the
    project-profile skill first.
+   Resolve modes with the project-profile skill's `scripts/action-mode.sh --list --repo <repo>`.
+   Include applicable modes and notes in each brief. An invalid configuration stops public actions.
 3. `scripts/ledger.sh <repo> status`; read the last round report and its retrospective.
 4. Inventory what you own: `worktree.sh list` (fix-issue skill), environments and cloud resources by
    your run label, open PRs by your account. Clean up only what is provably yours and idle.
@@ -57,8 +59,10 @@ events: [references/ledger.md](references/ledger.md). Chat memory is not state.
    - read the production diff and the callers of changed behavior;
    - the PR body's claims match the diff ("no new public API", counts, "fails without the fix").
    Agents misreport. An unverified claim is not published.
-7. **Publish** within policy and caps: closes (re-read the issue first), evidence comments, draft PRs,
-   reviews. Each write: ledger intent, write, ledger result with the URL. `--dry-run`: drafts only.
+7. **Publish** only per the resolved mode for each action and within policy and caps. `off`: report
+   the skipped action; `draft`: save the exact payload locally; `ask`: get approval for that payload;
+   `auto`: proceed after gates. Each write: ledger intent, write, ledger result with the URL.
+   `--dry-run` suppresses all writes outside the sandbox, including pushes and dispatches.
 8. **PR maintenance:** run the merge-pr skill over open PRs (yours and the round's), and the review-pr
    skill over PRs that the round routed to review.
 9. **Close the round:** clean up worktrees and environments (verify teardown), write
@@ -80,6 +84,12 @@ events: [references/ledger.md](references/ledger.md). Chat memory is not state.
 | Re-review requests per PR | 3 |
 | CI reruns | 1 per run, with evidence |
 | Paid or VM-creating runs | 0 without approval |
+| CI dispatches | 0 unless the profile sets a budget |
+
+Before dispatch, check `ci_dispatch`, then `ledger.sh <repo> dispatch-usage --round <n>`. Reject runs
+without a credible estimate or whose projected totals exceed any cap. Serialize dispatch decisions for
+the repo (hold a separate lock from budget check through receipt append). Write the `dispatch` event
+with its run ID and estimated minutes; reconcile uncertain outcomes before dispatching again.
 
 ## Stop and ask the user
 

@@ -31,14 +31,18 @@ meta="$(gh api graphql -F o="$owner" -F r="$name" -F n="$n" -f query="$meta_q")"
 checks="$(gh api graphql --paginate -F o="$owner" -F r="$name" -F n="$n" -f query="$checks_q" \
   | jq -s '[.[].data.repository.pullRequest.commits.nodes[0].commit.statusCheckRollup.contexts.nodes // [] | .[]]')"
 
+# A queued or waiting check run has no startedAt yet; it is the newest run of its workflow + name (a rerun
+# in progress), so it sorts last and its pending state wins over the attempt it replaces.
 summary="$(jq --slurpfile ctx <(printf '%s' "$checks") '.data.repository.pullRequest as $p
   | [$ctx[0][]
       | if .__typename == "CheckRun" then
-          {name, workflow: (.checkSuite.workflowRun.workflow.name // ""), required: .isRequired, at: (.startedAt // ""),
+          {name, workflow: (.checkSuite.workflowRun.workflow.name // ""), required: .isRequired, at: (.startedAt // "9999"),
+           success: (.status == "COMPLETED" and .conclusion == "SUCCESS"),
            bucket: (if .status != "COMPLETED" then "pending"
                     elif (.conclusion | IN("SUCCESS","NEUTRAL","SKIPPED")) then "pass" else "fail" end)}
         else
           {name: .context, workflow: "status", required: .isRequired, at: (.createdAt // ""),
+           success: (.state == "SUCCESS"),
            bucket: (if .state == "SUCCESS" then "pass" elif (.state | IN("PENDING","EXPECTED")) then "pending" else "fail" end)}
         end]
   | group_by([.workflow, .name]) | map(max_by(.at)) as $checks
@@ -49,10 +53,12 @@ summary="$(jq --slurpfile ctx <(printf '%s' "$checks") '.data.repository.pullReq
      mergeable: $p.mergeable, merge_state: $p.mergeStateStatus, review_decision: $p.reviewDecision,
      approvals_current: [$p.latestReviews.nodes[] | select(.state=="APPROVED" and .commit.oid==$p.headRefOid) | .author.login],
      approvals_old: [$p.latestReviews.nodes[] | select(.state=="APPROVED" and .commit.oid!=$p.headRefOid) | .author.login],
+     approvals: [$p.latestReviews.nodes[] | select(.state=="APPROVED") | {login: .author.login, commit: .commit.oid}],
      changes_requested: [$p.latestReviews.nodes[] | select(.state=="CHANGES_REQUESTED") | .author.login],
      checks: {total: ($checks|length),
               required: ([$checks[] | select(.required)] | length),
               required_pass: ([$checks[] | select(.required and .bucket=="pass")] | length),
+              required_success: ([$checks[] | select(.required and .success)] | length),
               failing: [$checks[] | select(.bucket=="fail") | {name, workflow, required}],
               pending: [$checks[] | select(.bucket=="pending") | {name, workflow, required}]},
      threads: {total: $p.reviewThreads.totalCount, complete: ($p.reviewThreads.totalCount <= 100),

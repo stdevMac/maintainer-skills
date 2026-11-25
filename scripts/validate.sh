@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Check the repository: skill frontmatter, relative links, scripts, and that skills stay generic.
 # Usage: scripts/validate.sh
-set -uo pipefail
+set -euo pipefail
+case "${1:-}" in -h|--help) sed -n '2,3s/^# //p' "$0"; exit 0 ;; esac
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 fail=0
 err() { echo "FAIL: $*"; fail=1; }

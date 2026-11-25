@@ -20,11 +20,16 @@ within the profile's quiet window): review is fine, pushing to it is not.
    the decision. If the head moved, the review is for the old head: keep it, review the new head's
    delta and any unchanged code it affects, then decide again.
 2. Deduplicate: list your account's reviews on this PR; no second identical review on the same head.
-3. Check policy: the profile allows this event type, attribution line included if the profile wants one.
+3. Check the profile allows this event type (for example no `REQUEST_CHANGES`) and wants an attribution
+   line.
+4. Check the action mode for `pr_review` (`scripts/action-mode.sh pr_review` in the project-profile
+   skill). `off` or `draft`: save the draft below and stop. `ask`: post only after explicit approval.
 
-## Posting
+## Draft and posting
 
-Build the payload as a file (never interpolate prose into shell):
+In every mode, build the payload as a file (never interpolate prose into shell) and save the draft
+`<state>/drafts/pr_review/<n>-<head sha>.md` with the target PR, the head SHA, the payload and the exact
+command below:
 
 ```json
 {
@@ -43,6 +48,6 @@ jq '{id, state, commit_id, html_url}' receipt.json
 ```
 
 Inline `line` must be a line present in the diff on that side; otherwise put the comment in the body
-with `path:line`. Save `payload.json` and `receipt.json` under `<state>/reviews/<n>/<head>/`.
+with `path:line`. After posting, save `payload.json` and `receipt.json` under `<state>/reviews/<n>/<head>/`.
 
 If the POST outcome is uncertain (timeout, network error), read the PR's reviews before retrying.

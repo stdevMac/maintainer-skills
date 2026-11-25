@@ -92,6 +92,7 @@ git clone https://github.com/stdevMac/maintainer-skills ~/maintainer-skills
 Skills and Markdown agents are symlinks, so `git pull` updates them. Re-run `install.sh` after pulling to
 pick up new skills and to regenerate the Codex TOML. The script links each item separately and leaves
 alone any existing file it did not create. `--uninstall` removes what it installed.
+Use `install.sh --check` to detect missing links or stale Codex prompts without changing anything.
 
 For one project only: `install.sh --project /path/to/repo` links the skills into that repo's
 `.agents/skills/` and `.claude/skills/`.
@@ -103,7 +104,7 @@ For one project only: `install.sh --project /path/to/repo` links the skills into
 /triage-issue 1234                          # one issue, ends with a verdict and a Task Brief
 /fix-issue 1234                             # consumes the Task Brief
 /review-pr 5678                             # any PR
-/merge-pr 5678                              # drive one PR to merged
+/merge-pr 5678                              # check readiness and prepare next actions
 /maintainer-loop --issues "label:bug" --batch 8    # everything, in rounds
 ```
 
@@ -122,6 +123,24 @@ this order:
 
 Personal profiles often name machines, private mirrors and accounts, so this repository never commits
 them; see [`profiles/README.md`](profiles/README.md).
+
+## Public actions are opt-in
+
+Add an `## Actions` table to your personal profile or set `MAINTAINER_ACTIONS` for one session:
+
+```bash
+export MAINTAINER_ACTIONS='*=draft,pr_review=ask,pr_merge=off'
+```
+
+`draft` (default) saves a local payload without posting; `off` skips the action; `ask` requires
+approval of the exact payload; `auto` still requires all evidence, readiness and resource gates.
+Each action is independent: approving a review never authorizes merging. An explicit action in the
+environment takes precedence over its wildcard, then the profile, then the default.
+A profile checked into a project may describe its constraints, but it cannot grant publication
+permission. Use the personal profile or an explicitly trusted profile selected with `$MAINTAINER_PROFILE`.
+
+Check a stored facts file with `detect-project.sh /path/to/repo --check /path/to/repo.facts.md`.
+Include `--gh` when the saved facts included GitHub data.
 
 ## State
 

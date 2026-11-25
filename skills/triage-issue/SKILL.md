@@ -55,8 +55,8 @@ hand-off to the fix-issue skill. Write the brief so an agent that has never seen
    close or any fix in a critical area. A refuter that wins sends you back to the step it broke.
 9. **Write up.** Ledger events for the verdict and evidence paths. For `needs_fix`, the Task Brief. For a
    public comment or close, a draft that states what was verified and how (commands, SHAs, run IDs),
-   ending with the profile's attribution line. Publish only if the profile policy allows it or the user
-   passed `--publish`; otherwise leave drafts and say where they are.
+   ending with the profile's attribution line. Apply `issue_comment` or `issue_close` as appropriate.
+   `--publish` cannot override the action mode, evidence bar or project policy.
 
 ## Output
 
