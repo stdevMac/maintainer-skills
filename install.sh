@@ -161,6 +161,15 @@ for a in "$here"/agents/*.md; do
   codex_agent "$a" "$codex_dir/$role.toml"
 done
 for p in "$here"/profiles/*__*.md; do
+  if [[ "$p" == *.facts.md ]]; then
+    dest="$cfg/$(basename "$p")"
+    # Older versions linked these by mistake. Remove only our exact symlink.
+    if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$p" ]; then
+      if [ "$check" = 1 ]; then problem "obsolete $dest: detected facts are not installed profiles"
+      else run rm -f -- "$dest"; fi
+    fi
+    continue
+  fi
   [ -f "$p" ] && link "$p" "$cfg/$(basename "$p")"
 done
 [ $check = 0 ] || leftovers "$HOME/.agents/skills" "$HOME/.claude/skills" "$HOME/.claude/agents" \

@@ -21,6 +21,8 @@ EOF
 [[ $(MAINTAINER_ACTIONS='*=draft,pr_review=off' "$script" pr_review --profile profile.md) == 'off env' ]]
 [[ $(MAINTAINER_ACTIONS='*=draft,pr_review=off' "$script" pr_merge --profile profile.md) == 'draft env' ]]
 if MAINTAINER_ACTIONS='pr_merge=typo' "$script" pr_merge --profile profile.md; then exit 1; fi
+printf '## Actions\n| pr_merge | | auto |\n' > malformed.md
+if "$script" pr_merge --profile malformed.md; then exit 1; fi
 git init -q
 git remote add origin https://github.com/example/repo.git
 cp profile.md MAINTAINER_PROFILE.md

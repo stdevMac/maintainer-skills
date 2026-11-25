@@ -13,7 +13,7 @@
 # Exit 2 on an unknown action or an invalid mode.
 set -euo pipefail
 
-actions=(push_branch pr_open pr_ready issue_comment issue_close issue_create labels pr_review thread_reply
+actions=(push_branch pr_open pr_ready issue_comment issue_close issue_create labels pr_review thread_reply thread_resolve
          pr_merge ci_dispatch ci_rerun)
 usage() { sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; }
 die() { echo "action-mode.sh: $1" >&2; exit 2; }
@@ -58,7 +58,7 @@ fi
 # ---- the profile's Actions table: "action<TAB>mode<TAB>notes" per row
 declare -A p_mode=() p_notes=()
 if [ -n "$profile" ]; then
-  while IFS=$'\t' read -r a m notes; do
+  while IFS=$'\034' read -r a m notes; do
     valid_mode "$m" || die "$profile: Actions row '$a' has mode '$m' (want off, draft, ask or auto)"
     [ "$a" = "*" ] || known "$a" || die "$profile: unknown action '$a'"
     p_mode[$a]="$m"; p_notes[$a]="$notes"
@@ -74,7 +74,7 @@ if [ -n "$profile" ]; then
       for (i = 3; i <= n; i++) notes = notes (i > 3 ? "|" : "") c[i]
       gsub(/^[ \t]+|[ \t]+$/, "", notes)
       if (a == "" || tolower(a) == "action" || a ~ /^:?-+:?$/) next
-      print a "\t" m "\t" notes
+      print a "\034" m "\034" notes
     }' "$profile")
 fi
 

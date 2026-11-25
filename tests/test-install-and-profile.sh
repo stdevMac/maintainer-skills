@@ -13,6 +13,21 @@ if "$root/install.sh" --check; then echo 'foreign role passed check' >&2; exit 1
 "$root/install.sh" --uninstall >/dev/null
 [[ -f "$CODEX_HOME/agents/fixer.toml" && ! -L "$HOME/.agents/skills/fix-issue" ]]
 
+fixture="$tmp/install"
+mkdir -p "$fixture/profiles" "$XDG_CONFIG_HOME/maintainer-skills/profiles"
+cp "$root/install.sh" "$fixture/"
+ln -s "$root/agents" "$fixture/agents"
+ln -s "$root/skills" "$fixture/skills"
+touch "$fixture/profiles/example__repo.md" "$fixture/profiles/example__repo.facts.md" "$fixture/profiles/other__repo.facts.md"
+touch "$fixture/profiles/fresh__repo.facts.md"
+profiles="$XDG_CONFIG_HOME/maintainer-skills/profiles"
+ln -s "$fixture/profiles/example__repo.facts.md" "$profiles/example__repo.facts.md"
+printf '%s\n' 'user-owned file' > "$profiles/other__repo.facts.md"
+"$fixture/install.sh" >/dev/null
+[[ -L "$profiles/example__repo.md" && ! -L "$profiles/example__repo.facts.md" ]]
+[[ $(cat "$profiles/other__repo.facts.md") == 'user-owned file' ]]
+[[ ! -e "$profiles/fresh__repo.facts.md" && ! -L "$profiles/fresh__repo.facts.md" ]]
+
 facts="$root/skills/project-profile/scripts/detect-project.sh"
 git -C "$tmp/repo" init -q
 printf '%s\n' 'go 1.23' > "$tmp/repo/go.mod"

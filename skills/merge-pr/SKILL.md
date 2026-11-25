@@ -10,8 +10,8 @@ Arguments: one or more PR numbers, or `--author <login>` for all open PRs of an 
 
 End with a merge receipt, a local draft, or the exact blocker. A PR never merges with an open thread.
 Load the project profile and resolve modes with the project-profile skill's `action-mode.sh`.
-Use `push_branch`, `thread_reply`, `ci_rerun`, `pr_ready`, `pr_open` (body edits), `pr_merge` and
-`issue_close` for their respective actions. `--post` and `--merge` only narrow permissions; neither
+Use `push_branch`, `thread_reply`, `thread_resolve`, `ci_rerun`, `pr_ready`, `pr_open` (body edits),
+`pr_merge` and `issue_close` for their respective actions. `--post` and `--merge` only narrow permissions; neither
 overrides a mode or a project gate. Start a detached watcher only in `pr_merge=auto` mode.
 
 ## Steps
@@ -26,8 +26,8 @@ overrides a mode or a project gate. Start a detached watcher only in `pr_merge=a
    bot and "nit" or "optional" ones, gets one of: a fix (commit, then a reply naming it), or a reply that
    answers with evidence (code at file:line, a test, a reference implementation). Verify the reviewer's
    claim with a test before deciding; claims that pin down concrete behavior are often right. Drafts go
-   to `<state>/prs/<n>/reply-<file>-<line>-<reviewer>.md`; `scripts/reply-and-resolve.sh <dir>` previews
-   them and posts them with `--post` when allowed. Many threads across PRs: one subagent per PR, using
+   to `<state>/prs/<n>/reply-<file>-<line>-<reviewer>.md`. Preview the exact head, replies and any
+   requested resolutions as described in the thread reference. Many threads across PRs: one subagent per PR, using
    the fixer role and the fix-issue skill's verification steps.
 4. **CI** ([references/ci-triage.md](references/ci-triage.md)). Read the failing job's log before
    anything else. Ours: fix it. Known flake or infrastructure, with evidence: one rerun of the failed jobs,
@@ -42,11 +42,11 @@ overrides a mode or a project gate. Start a detached watcher only in `pr_merge=a
    the new head.
 7. **Readiness.** Draft PRs become ready when CI is green and policy allows. PRs that need human approval
    go into a short request message (the ask first, full URLs, the code owner for guarded areas).
-8. **Merge gate.** `scripts/merge-when-green.sh <owner/repo> <n> <full head sha>` evaluates every gate
-   and reports. With policy and `--merge`: add `--merge`, plus `--block-check` for each extra blocker in
-   the profile. For unattended waiting add `--watch` and run it detached
-   (`setsid nohup ... >> <state>/prs/<n>/watch.log 2>&1 < /dev/null &`). Never merge by hand around the
-   gate. After you push again, stop the old watcher and start one on the new head.
+8. **Merge gate.** `scripts/merge-when-green.sh <owner/repo> <n> <full head sha>`
+   previews the exact-head gate. Include profile-specific options such as `--block-check` in the
+   preview and apply. In `ask` mode, show the preview and pass `--merge --approve <token>` only after
+   the user approves it. In `auto`, use `--merge`, optionally with `--watch` for unattended waiting.
+   Never merge by hand around the gate. A moved head stops the watcher; re-evaluate before restarting.
 9. **After the merge.** Confirm the merge commit, that linked issues closed (or close them per policy with
    the merge reference), and that post-merge CI on the base branch is not newly red because of it. Delete
    the branch if the project does. Remove worktrees. Record the merge in the ledger.

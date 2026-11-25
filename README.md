@@ -10,8 +10,8 @@ proof.
   running its commands.
 - **Autonomous inside a sandbox, gated at the boundary.** Agents may build anything, run any suite, start
   real services, fuzz, bisect and run the software end to end, all in their own worktree and disposable
-  environments. They stop and ask at public writes, pushes, merges, shared machines, secrets, money, and
-  anything irreversible.
+  environments. GitHub writes default to local drafts. Configure each action separately; shared
+  machines, secrets, money, and irreversible actions outside that policy still need approval.
 - **Evidence over claims.** A verdict needs an artifact: a test that fails before the fix and passes
   after, a log, a run ID, a merge commit on the base branch. Reading the code alone can justify a
   comment, never a close or a merge.
@@ -138,6 +138,10 @@ Each action is independent: approving a review never authorizes merging. An expl
 environment takes precedence over its wildcard, then the profile, then the default.
 A profile checked into a project may describe its constraints, but it cannot grant publication
 permission. Use the personal profile or an explicitly trusted profile selected with `$MAINTAINER_PROFILE`.
+The merge and thread helpers also enforce policy when run directly. In `ask` mode, show the user the
+exact preview first; pass its token with `--approve` only after they approve it. Tokens bind the PR,
+head and requested operation, not the user's identity. They are not credentials and do not limit
+what someone with GitHub credentials can do outside these helpers.
 
 Check a stored facts file with `detect-project.sh /path/to/repo --check /path/to/repo.facts.md`.
 Include `--gh` when the saved facts included GitHub data.
@@ -163,8 +167,8 @@ write flag.
 | [`fix-issue/scripts/worktree.sh`](skills/fix-issue/scripts/worktree.sh) | Owned worktrees with a registry; refuses to remove dirty or unpushed work |
 | [`fix-issue/scripts/fail-before.sh`](skills/fix-issue/scripts/fail-before.sh) | Proves a regression test fails with the production change reverted, then restores the fix exactly |
 | [`merge-pr/scripts/pr-state.sh`](skills/merge-pr/scripts/pr-state.sh) | One-shot readiness snapshot: head, approvals, threads, required checks |
-| [`merge-pr/scripts/merge-when-green.sh`](skills/merge-pr/scripts/merge-when-green.sh) | The merge gate; merges only with `--merge`, at a pinned head, when everything is green |
-| [`merge-pr/scripts/reply-and-resolve.sh`](skills/merge-pr/scripts/reply-and-resolve.sh) | Posts drafted thread replies and resolves threads; `--post` to write |
+| [`merge-pr/scripts/merge-when-green.sh`](skills/merge-pr/scripts/merge-when-green.sh) | Preview at an exact head; apply with `--merge` and any required approval. A moved head stops both preview and apply |
+| [`merge-pr/scripts/reply-and-resolve.sh`](skills/merge-pr/scripts/reply-and-resolve.sh) | Preview and apply replies at an exact PR head; `--resolve` requests separately authorized resolutions |
 | [`maintainer-loop/scripts/ledger.sh`](skills/maintainer-loop/scripts/ledger.sh) | Append-only JSONL ledger: skip lists, rounds, status |
 
 ## Layout

@@ -19,4 +19,5 @@ Where to keep yours (the skills look in this order):
    profiles next to your clone (ignored by git) or in a private repository of your own.
 
 `<owner>__<repo>.facts.md` next to a profile holds the raw output of
-`skills/project-profile/scripts/detect-project.sh`; regenerate it instead of editing it.
+`skills/project-profile/scripts/detect-project.sh`; regenerate it instead of editing it. The installer
+does not link facts files into your profile directory.

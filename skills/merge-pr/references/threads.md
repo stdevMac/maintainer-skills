@@ -50,8 +50,14 @@ Fixed in <short sha>: <what changed, one sentence>. `<TestName>` covers it and f
 ```
 
 Reply style: verdict in the first sentence, then the evidence; cite the commit and file:line; no
-@-mentions unless the project uses them; attribution line if the profile requires one. Post with
-`scripts/reply-and-resolve.sh <dir> --post` only when policy or the user allows; it is idempotent.
+@-mentions unless the project uses them; attribution line if the profile requires one.
+Preview with `scripts/reply-and-resolve.sh <owner/repo> <pr> <full head sha> <dir>`. Add
+`--resolve` to the preview if it should include resolutions of drafts marked `yes`.
+For an authorized apply, keep the same arguments and add `--post`. If `thread_reply` or a requested
+`thread_resolve` is `ask`, show the user the preview and pass `--approve <token>` only after they
+approve it. Without `--resolve`, the helper only replies, even if a draft says `yes`.
+The helper checks thread ownership and head before posting. GitHub's thread mutations have no
+compare-and-swap head parameter, so don't use them while another session is actively pushing.
 
 ## Pushing fixes to the PR
 

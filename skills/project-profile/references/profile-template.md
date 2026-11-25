@@ -153,7 +153,8 @@ skill gate passes. `MAINTAINER_ACTIONS` overrides this table for one session. No
 | issue_create | draft | |
 | labels | draft | Includes titles, assignees and reviewers |
 | pr_review | draft | |
-| thread_reply | draft | Includes resolving review threads |
+| thread_reply | draft | Post a review-thread reply |
+| thread_resolve | draft | Resolve a review thread; independent of permission to reply |
 | pr_merge | draft | Never bypass the merge gate |
 | ci_dispatch | draft | Budget and resource approvals still apply |
 | ci_rerun | draft | |

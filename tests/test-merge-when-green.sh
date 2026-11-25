@@ -56,7 +56,7 @@ green() {
   gh_route '^pr view 42 -R o/r --json state,mergeCommit' '{"state":"MERGED","mergeCommit":{"oid":"eeee"}}'
 }
 with_meta() { gh_route 'reviewThreads' "$(meta "$@")"; }
-gate() { run "$S" o/r 42 "$PIN" "$@"; }
+gate() { MAINTAINER_ACTIONS="${MAINTAINER_ACTIONS-pr_merge=auto}" run "$S" o/r 42 "$PIN" "$@"; }
 refused() {  # expected_rc reason_substring
   assert_rc "$1"; assert_contains "$OUT" "$2"
   assert_no_gh_writes; assert_gh_not_called '^pr merge'
@@ -87,26 +87,55 @@ test_merge_method_rebase_is_passed_through() {
 
 test_refuses_when_head_sha_moved() {
   green; with_meta head="$NEW"
-  gh_route "^api repos/o/r/commits/$NEW" "{\"parents\":[{\"sha\":\"$OLD\"}]}"
   gate --merge
   refused 1 "head moved to $NEW"
 }
 
-test_refuses_when_head_moved_to_a_merge_of_a_non_base_branch() {
-  green; with_meta head="$NEW"
-  gh_route "^api repos/o/r/commits/$NEW" "{\"parents\":[{\"sha\":\"$PIN\"},{\"sha\":\"$OLD\"}]}"
-  gh_route "^api repos/o/r/compare/main\\.\\.\\.$OLD" '{"status":"diverged"}'
-  gate --merge
-  refused 1 "not a plain base merge"
-}
-
-test_watch_follows_plain_base_merge_and_merges_at_the_new_head() {
+test_watcher_refuses_even_a_plain_base_merge_on_apply() {
   green; with_meta head="$NEW"
   gh_route "^api repos/o/r/commits/$NEW" "{\"parents\":[{\"sha\":\"$PIN\"},{\"sha\":\"$BASEC\"}]}"
   gh_route "^api repos/o/r/compare/main\\.\\.\\.$BASEC" '{"status":"behind"}'
-  run timeout 20 "$S" o/r 42 "$PIN" --merge --watch --interval 0
-  assert_rc 0; assert_contains "$OUT" "plain base merge; following"
-  assert_gh_called "^pr merge 42 -R o/r --squash --match-head-commit $NEW\$"
+  MAINTAINER_ACTIONS=pr_merge=auto run timeout 20 "$S" o/r 42 "$PIN" --merge --watch --interval 0
+  refused 1 "head moved to $NEW"
+  assert_gh_not_called '^api repos/o/r/commits/'
+}
+
+test_default_and_off_block_direct_merge() {
+  green; with_meta
+  MAINTAINER_ACTIONS='' gate --merge
+  refused 2 "pr_merge=draft"
+  MAINTAINER_ACTIONS=pr_merge=off gate --merge
+  refused 2 "pr_merge=off"
+}
+
+test_ask_requires_and_binds_exact_merge_approval() {
+  green; with_meta
+  local token
+  MAINTAINER_ACTIONS=pr_merge=ask gate --merge
+  refused 2 "pr_merge=ask"
+  MAINTAINER_ACTIONS=pr_merge=ask gate
+  assert_rc 0; assert_no_gh_writes
+  token="$(sed -n 's/^Approval token: //p' <<<"$OUT")"
+  assert_match "$token" '^[a-f0-9]{40,64}$'
+  MAINTAINER_ACTIONS=pr_merge=ask gate --merge --watch --approve "$token"
+  refused 2 "auto only"
+  MAINTAINER_ACTIONS=pr_merge=ask gate --merge --method rebase --approve "$token"
+  refused 2 "approval does not match"
+  MAINTAINER_ACTIONS=pr_merge=ask run "$S" o/r 42 "$NEW" --merge --approve "$token"
+  refused 2 "approval does not match"
+  MAINTAINER_ACTIONS=pr_merge=ask gate --merge --approve "$token"
+  assert_rc 0; assert_contains "$OUT" "MERGED eeee"
+  assert_eq 1 "$(gh_writes | wc -l | tr -d ' ')"
+}
+
+test_ask_approval_refuses_head_change_after_preview() {
+  green
+  gh_route_once 'reviewThreads' "$(meta)"
+  with_meta head="$NEW"
+  MAINTAINER_ACTIONS=pr_merge=ask gate
+  assert_rc 0
+  MAINTAINER_ACTIONS=pr_merge=ask gate --merge --approve "$(sed -n 's/^Approval token: //p' <<<"$OUT")"
+  refused 1 "head moved to $NEW"
 }
 
 test_refuses_when_unresolved_review_thread() {
@@ -123,7 +152,6 @@ test_refuses_when_review_threads_exceed_one_page() {
 
 test_refuses_when_no_approval_on_current_head() {
   green; with_meta approved_on="$OLD"
-  gh_route "^api repos/o/r/commits/$PIN" "{\"parents\":[{\"sha\":\"$OLD\"}]}"
   gate --merge
   refused 3 "no approval on head ${PIN:0:12}"
 }
@@ -140,19 +168,23 @@ test_no_approval_flag_still_refuses_review_required() {
   refused 3 "review decision REVIEW_REQUIRED"
 }
 
+test_no_approval_flag_does_not_accept_stale_approval() {
+  green; with_meta approved_on="$OLD"
+  gate --merge --no-approval
+  refused 3 "no approval on head"
+}
+
 test_no_approval_flag_accepts_empty_review_decision() {
   green; with_meta rd="" approved_on=""
   gate --no-approval
   assert_rc 0; assert_contains "$OUT" "READY"
 }
 
-test_accepts_approval_behind_a_plain_base_merge() {
+test_preview_rejects_approval_behind_a_plain_base_merge() {
   green; with_meta approved_on="$OLD"
-  gh_route "^api repos/o/r/commits/$PIN" "{\"parents\":[{\"sha\":\"$OLD\"},{\"sha\":\"$BASEC\"}]}"
-  gh_route "^api repos/o/r/compare/main\\.\\.\\.$BASEC" '{"status":"behind"}'
-  gh_route "^api repos/o/r/commits/$OLD" "{\"parents\":[{\"sha\":\"$BASEC\"}]}"
   gate
-  assert_rc 0; assert_contains "$OUT" "READY"; assert_no_gh_writes
+  refused 3 "no approval on head ${PIN:0:12}"
+  assert_gh_not_called '^api repos/o/r/commits/'
 }
 
 test_refuses_when_required_check_failing() {
@@ -272,9 +304,9 @@ test_strict_required_refuses_skipped_and_keeps_nonrequired_guard_skippable() {
   refused 3 "required checks 1/2"
 }
 
-test_exact_head_never_follows_a_base_merge() {
-  green; with_meta head=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-  gate --merge --exact-head
+test_preview_also_refuses_head_movement() {
+  green; with_meta head="$NEW"
+  gate
   refused 1 "head moved"
   assert_gh_not_called '^api repos/o/r/commits/'
 }
